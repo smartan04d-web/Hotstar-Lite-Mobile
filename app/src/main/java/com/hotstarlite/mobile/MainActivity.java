@@ -92,6 +92,7 @@ public final class MainActivity extends Activity {
         filterButton = button("");
         updateFilterLabel();
         Button browse = button("Browse");
+        Button official = button("Open Official App");
         skipButton = button("");
         updateSkipLabel();
         home.setOnClickListener(v -> web.loadUrl(HOME));
@@ -113,6 +114,8 @@ public final class MainActivity extends Activity {
         toolbar.addView(filterButton);
         toolbar.addView(skipButton);
         toolbar.addView(browse);
+        toolbar.addView(official);
+        official.setOnClickListener(v -> openOfficialApp());
         skipButton.setOnClickListener(v -> {
             autoSkipEnabled = !autoSkipEnabled;
             prefs.edit().putBoolean("auto_skip", autoSkipEnabled).apply();
@@ -175,6 +178,33 @@ public final class MainActivity extends Activity {
         setContentView(root);
         if (state != null) web.restoreState(state); else web.loadUrl(HOME);
 
+    }
+    private void openOfficialApp() {
+        // Use the installed official Android app when possible. We do not
+        // impersonate its package or attempt to bypass streaming restrictions.
+        String packageName = "in.startv.hotstar";
+        Intent open = getPackageManager().getLaunchIntentForPackage(packageName);
+        if (open != null) {
+            try { startActivity(open); return; }
+            catch (ActivityNotFoundException ignored) { }
+        }
+        // Android 11+ package visibility may hide apps from getLaunchIntentForPackage.
+        try {
+            Intent direct = new Intent(Intent.ACTION_MAIN);
+            direct.addCategory(Intent.CATEGORY_LAUNCHER);
+            direct.setPackage(packageName);
+            startActivity(direct);
+            return;
+        } catch (ActivityNotFoundException ignored) { }
+        // Fall back to official app listing rather than silently failing.
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                Uri.parse("market://details?id=" + packageName)));
+        } catch (ActivityNotFoundException e) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW,
+                Uri.parse("https://play.google.com/store/apps/details?id=" + packageName))); }
+            catch (ActivityNotFoundException ignored) { toast("No browser or Play Store found"); }
+        }
     }
     private static boolean isAdHost(String host) {
         if (host == null) return false;
